@@ -1,9 +1,21 @@
+[![one-hop by Synapse](https://raw.githubusercontent.com/synapsereality/one-hop/main/.github/assets/banner.png)](https://synapsereality.io/open-source/one-hop/)
+
+[![PyPI version](https://img.shields.io/pypi/v/one-hop)](https://pypi.org/project/one-hop/)
+[![CI](https://github.com/synapsereality/one-hop/actions/workflows/ci.yml/badge.svg)](https://github.com/synapsereality/one-hop/actions/workflows/ci.yml)
+[![MIT licence](https://img.shields.io/badge/licence-MIT-blue)](https://github.com/synapsereality/one-hop/blob/main/LICENSE)
+
+[Docs](https://synapsereality.io/open-source/one-hop/) |
+[synapsereality.io](https://synapsereality.io) |
+[Synapse open source](https://synapsereality.io/open-source/) |
+[PyPI](https://pypi.org/project/one-hop/)
+
 # one-hop
 
 Checks a redirect map. Every old URL has to answer with one permanent redirect
 (301 or 308) straight to its new URL. The new URL has to answer 200. Anything else
 fails: a chain, a loop, a 404, a redirect to the wrong page. The exit code is then
-1, so CI can stop the release.
+1, so CI can stop the release. [Run it in CI](#run-it-in-ci) has jobs for GitHub
+Actions, GitLab CI, Bitbucket Pipelines and a plain shell step.
 
 Docs: https://synapsereality.io/open-source/one-hop/
 
@@ -95,7 +107,17 @@ redirect points at another host, that request is sent without them.
 Trailing slashes count. `/about` and `/about/` are two URLs, and a map that says
 `/about/` when the server redirects to `/about` fails as `wrong_target`.
 
-## GitHub Actions
+## Run it in CI
+
+Each job below fails when any rule fails. They check `redirects.csv` against a
+staging host. After the move, point `--base` at the live site and run the same
+job again.
+
+For a staging host behind a password, store `user:password` as a secret named
+`ONE_HOP_AUTH`. one-hop reads it from the environment, so it never appears in
+the command or the log.
+
+### GitHub Actions
 
 ```yaml
 - uses: actions/checkout@v4
@@ -109,6 +131,83 @@ Trailing slashes count. `/about` and `/about/` are two URLs, and a map that says
 
 The action needs `python3` on the runner, which GitHub's hosted runners have. It
 installs nothing.
+
+### GitLab CI
+
+In `.gitlab-ci.yml`:
+
+```yaml
+redirects:
+  image: python:3.13-slim
+  script:
+    - pip install one-hop==0.1.0
+    - one-hop redirects.csv --base https://staging.example.com --json redirects.json
+  artifacts:
+    when: always
+    paths:
+      - redirects.json
+```
+
+Add `ONE_HOP_AUTH` under Settings, CI/CD, Variables, with its visibility set
+to Masked and "Expand variable reference" unticked. GitLab passes it to the
+job as an environment variable. A masked value has to be at least 8
+characters with no spaces. With expansion on, GitLab also refuses most
+symbols in it. `when: always` keeps the
+JSON report when the job fails, which is when you need it.
+
+### Bitbucket Pipelines
+
+In `bitbucket-pipelines.yml`:
+
+```yaml
+image: python:3.13-slim
+
+pipelines:
+  default:
+    - step:
+        name: Check the redirect map
+        script:
+          - pip install one-hop==0.1.0
+          - one-hop redirects.csv --base https://staging.example.com
+```
+
+Add `ONE_HOP_AUTH` under Repository settings, Pipelines, Repository variables,
+with Secured ticked. Bitbucket passes it to the step as an environment
+variable and hides its value in the log.
+
+### Any other CI: a shell step
+
+Jenkins, CircleCI, Drone, a Makefile or a deploy script: anything that runs a
+shell command and reads its exit code. You need Python 3.10 or later. A
+virtual environment keeps the install away from the system Python:
+
+```bash
+python3 -m venv .one-hop
+.one-hop/bin/pip install one-hop==0.1.0
+.one-hop/bin/one-hop redirects.csv --base https://staging.example.com
+```
+
+To tell a broken redirect apart from a check that couldn't run:
+
+```bash
+status=0
+.one-hop/bin/one-hop redirects.csv --base https://staging.example.com || status=$?
+case $status in
+  0) echo "every old URL reaches its new URL in one hop" ;;
+  1) echo "at least one rule failed. See the FAIL lines above."; exit 1 ;;
+  *) echo "one-hop did not run: check the CSV and the command line"; exit 2 ;;
+esac
+```
+
+### Exit codes
+
+| code | meaning |
+|---|---|
+| 0 | Every rule passed. |
+| 1 | At least one rule failed: any kind in the table above, `error` included. A host that refuses the connection or times out is a failure too. A crash also gives 1, for example a `--json` path that can't be written. |
+| 2 | Nothing was checked: the CSV couldn't be read or had no rules, `--base` wasn't an absolute URL, or a flag was wrong. |
+
+Pin the version, as above, so a new release can't change a passing build.
 
 ## Install from source
 
