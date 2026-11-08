@@ -23,6 +23,96 @@ redirect plugin adds a second hop to hundreds of rules at once.
 We wrote the first version for our own site move in September 2026, 2,030 rules
 from a WordPress site to a static build. This is that script, made general.
 
+## Before the move: snapshot the old URLs
+
+A redirect map is only as good as its list of old URLs. `one-hop snapshot`
+records them while the old site is still up, so the map starts from what the
+site serves, not from memory.
+
+```bash
+one-hop snapshot https://example.com/sitemap.xml --out snapshot.csv
+```
+
+It reads the sitemap, following redirects, sitemap indexes and `.gz` files.
+`--urls FILE` adds URLs the sitemap leaves out, one per line. Then it fetches
+each URL, follows its redirects and writes a row for it. Against a local test
+server:
+
+```text
+$ one-hop snapshot https://example.com/sitemap.xml --urls extra-urls.txt --out snapshot.csv
+fetching 5 URLs, 2 a second per host, 2 at a time
+  5/5
+wrote 5 rows to snapshot.csv (200: 2, 301: 1, 404: 1, disallowed by robots.txt: 1)
+```
+
+```csv
+old,new,status,final_status,final_url,canonical,note
+/,,200,200,https://example.com/,https://example.com/,
+/about-us,,301,200,https://example.com/about/,https://example.com/about/,
+/blog/old-post/,,200,200,https://example.com/blog/old-post/,https://example.com/blog/new-post/,
+/private/report,,,,,,disallowed by robots.txt
+/pricing,,404,404,https://example.com/pricing,,
+```
+
+| column | what it holds |
+|---|---|
+| `old` | the URL as a path. URLs on another host keep the full URL, as does a path starting with `//`. `--absolute` keeps it for all of them |
+| `new` | empty. Fill it in for each URL that moves |
+| `status` | what the old URL answered |
+| `final_status`, `final_url` | where its redirects end, and what that URL answered |
+| `canonical` | the canonical URL of the final page, from a `Link` header or the HTML `<head>` |
+| `note` | what stopped the fetch, if anything: robots.txt, a redirect loop, too many redirects, a redirect to a non-http URL or a failed request |
+
+Fill in `new` and the file is the redirect map this tool checks:
+
+```bash
+one-hop snapshot.csv --base https://staging.example.com
+```
+
+A row with `new` left empty says the URL must still answer 200 with no
+redirect, so a page nobody mapped fails the check as `not_found`.
+
+It records the URL inventory, not the site. No page content is kept, so it
+doesn't replace a backup.
+
+### How it fetches
+
+- It reads each host's robots.txt first, as
+  [RFC 9309](https://www.rfc-editor.org/rfc/rfc9309) describes. It follows the
+  group for `one-hop`, or `*` when no group names it. A URL that robots.txt
+  disallows is listed with a note and never fetched.
+- If robots.txt answers 5xx or 429, or doesn't answer, nothing on that host is
+  fetched. A 404 robots.txt allows everything.
+- It sends at most `--rate` requests a second to any one host (default 2),
+  with at most `--concurrency` in flight (default 2). A slower `Crawl-delay`
+  in robots.txt wins, up to 60 seconds.
+- The user agent is `one-hop/VERSION (+https://github.com/synapsereality/one-hop)`.
+- It only sends GET requests, and reads at most 1 MiB of each page to find the
+  canonical.
+
+### Snapshot options
+
+| flag | default | |
+|---|---|---|
+| `--urls FILE` | none | also fetch the URLs in FILE, one per line. Repeatable, `-` reads stdin |
+| `--out FILE` | stdout | where to write the CSV |
+| `--rate N` | 2 | requests a second to any one host |
+| `--concurrency N` | 2 | requests in flight at once |
+| `--timeout S` | 20 | seconds per request |
+| `--max-hops N` | 10 | stop following a redirect chain after N hops |
+| `--max-urls N` | 50000 | stop after N URLs |
+| `--absolute` | off | write full URLs in the `old` column |
+| `--insecure` | off | skip TLS certificate checks |
+
+The exit code is 0 when no sitemap failed. That includes a run that
+`--max-urls` cut short. It's 1 when a sitemap couldn't be read, or when the
+run stopped after 1,000 sitemap files. The CSV still has every URL it found.
+It's 2 when the command line was wrong, `--out` can't be written or there
+were no URLs to fetch. A failed run leaves an earlier `--out` file as it was.
+
+Sitemaps have to be UTF-8, as the sitemap protocol says. One with a
+`DOCTYPE` or entities isn't read.
+
 ## The CSV
 
 Two columns, old URL then new URL. A header row is optional. With one, the columns
