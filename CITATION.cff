@@ -6,7 +6,7 @@ abstract: "Check a redirect map: every old URL must reach its new URL in exactly
 authors:
   - name: "Synapse Research Ltd"
     website: "https://synapsereality.io/"
-version: "0.1.0"
+version: 0.2.0
 license: MIT
 repository-code: "https://github.com/synapsereality/one-hop"
 url: "https://synapsereality.io/open-source/one-hop/"
