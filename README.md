@@ -211,7 +211,7 @@ the command or the log.
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: synapsereality/one-hop@v0.1.0
+- uses: synapsereality/one-hop@v0.2.0
   with:
     csv: redirects.csv
     base: https://staging.example.com
@@ -230,7 +230,7 @@ In `.gitlab-ci.yml`:
 redirects:
   image: python:3.13-slim
   script:
-    - pip install one-hop==0.1.0
+    - pip install one-hop==0.2.0
     - one-hop redirects.csv --base https://staging.example.com --json redirects.json
   artifacts:
     when: always
@@ -257,7 +257,7 @@ pipelines:
     - step:
         name: Check the redirect map
         script:
-          - pip install one-hop==0.1.0
+          - pip install one-hop==0.2.0
           - one-hop redirects.csv --base https://staging.example.com
 ```
 
@@ -273,7 +273,7 @@ virtual environment keeps the install away from the system Python:
 
 ```bash
 python3 -m venv .one-hop
-.one-hop/bin/pip install one-hop==0.1.0
+.one-hop/bin/pip install one-hop==0.2.0
 .one-hop/bin/one-hop redirects.csv --base https://staging.example.com
 ```
 
