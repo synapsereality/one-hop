@@ -9,7 +9,7 @@ description = "Check a redirect map: every old URL must reach its new URL in exa
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [{ name = "Synapse Research Ltd" }]
 keywords = ["redirects", "301", "seo", "site-migration", "ci"]
 classifiers = [
@@ -40,4 +40,4 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 110
-target-version = "py310"
+target-version = "py311"

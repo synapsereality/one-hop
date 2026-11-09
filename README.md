@@ -208,7 +208,7 @@ cd one-hop
 pip install .
 ```
 
-Python 3.10 or later, no dependencies. `python -m one_hop` works without
+Python 3.11 or later, no dependencies. `python -m one_hop` works without
 installing if `src` is on `PYTHONPATH`.
 
 ## Tests
