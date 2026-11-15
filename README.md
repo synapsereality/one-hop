@@ -32,7 +32,7 @@ every extra hop is one more request per URL. After a migration the map is often
 right on paper and wrong on the server. One trailing-slash rule or a leftover
 redirect plugin adds a second hop to hundreds of rules at once.
 
-We wrote the first version for our own site move in September 2026, 2,030 rules
+We wrote the first version for our own site move in September 2026, 2,026 rules
 from a WordPress site to a static build. This is that script, made general.
 
 ## Before the move: snapshot the old URLs
@@ -268,7 +268,7 @@ variable and hides its value in the log.
 ### Any other CI: a shell step
 
 Jenkins, CircleCI, Drone, a Makefile or a deploy script: anything that runs a
-shell command and reads its exit code. You need Python 3.10 or later. A
+shell command and reads its exit code. You need Python 3.11 or later. A
 virtual environment keeps the install away from the system Python:
 
 ```bash
